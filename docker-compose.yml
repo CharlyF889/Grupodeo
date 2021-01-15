@@ -1,0 +1,55 @@
+version: "3"
+networks:
+  web-network:
+services:
+  wordpress:
+    image: wordpress:5.6.0-php7.3-fpm-alpine
+    ports:
+      - "9000:9000"
+    volumes:
+      - ./data/html:/var/www/html
+    depends_on:
+      - db
+    environment:
+      MYSQL_ROOT_PASSWORD: mysql_root_pass
+      WORDPRESS_DB_HOST: db
+      WORDPRESS_DB_NAME: grupodeo_newsites
+      WORDPRESS_DB_USER: grupodeo_unos
+      WORDPRESS_DB_PASSWORD: GrupoDeo2019
+      TABLE_PREFIX: wp_
+      DB_CHARSET: utf8mb4
+    networks:
+      - web-network
+    restart: always
+  db:
+    image: mysql:5.7
+    restart: always
+    environment:
+      MYSQL_DATABASE: grupodeo_newsites
+      MYSQL_USER: grupodeo_unos
+      MYSQL_PASSWORD: GrupoDeo2019
+      MYSQL_ROOT_PASSWORD: mysql_root_pass
+    volumes:
+      - ./data/mysql:/var/lib/mysql
+  nginx:
+    build: ./nginx
+    volumes:
+      - ./data/html:/var/www/html
+      - ./data/certbot/conf:/etc/letsencrypt
+      - ./data/certbot/www:/var/www/certbot
+    ports:
+      - 8050:80
+    depends_on:
+      - wordpress
+    networks:
+      - web-network
+  certbot:
+    container_name: CertBot
+    image: certbot/certbot
+    restart: unless-stopped
+    volumes:
+      - ./data/certbot/conf:/etc/letsencrypt
+      - ./data/certbot/www:/var/www/certbot
+    networks:
+      - web-network
+    entrypoint: "/bin/sh -c 'trap exit TERM; while :; do certbot renew; sleep 12h & wait $${!}; done;'"
